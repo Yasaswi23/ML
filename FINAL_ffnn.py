@@ -17,22 +17,22 @@ class FFNN(nn.Module):
     def __init__(self, input_dim, h):
         super(FFNN, self).__init__()
         self.h = h
-        self.W1 = nn.Linear(input_dim, h) # Defined first fully connected/input layer,of input size input_dim and projecting to h hidden units
-        self.activation = nn.ReLU() # Apply ReLU activation to introduce non-linearity
-        self.dropout = nn.Dropout(0.5) # Apply dropout with a rate of 0.5 after the hidden layer to prevent overfitting
+        self.W1 = nn.Linear(input_dim, h) # Defined first fully connected/input layer
+        self.activation = nn.ReLU() # Apply ReLU activation
+        self.dropout = nn.Dropout(0.5) # Dropout to prevent overfitting
         self.output_dim = 5
-        self.W2 = nn.Linear(h, self.output_dim) # Defined second fully connected/output layer, projecting from h hidden units to the output dimension(5sentimentclasses)
-        self.softmax = nn.LogSoftmax(dim=-1) # Apply LogSoftmax to the output to get log probabilities over the 5 sentiment classes
+        self.W2 = nn.Linear(h, self.output_dim) # Second fully connected/output layer
+        self.softmax = nn.LogSoftmax(dim=-1) # Apply LogSoftmax
         self.loss = nn.NLLLoss()  # Negative Log Likelihood Loss
 
     def compute_Loss(self, predicted_vector, gold_label):
         return self.loss(predicted_vector, gold_label)
 
     def forward(self, input_vector):
-        hidden_rep = self.activation(self.W1(input_vector))  #Input is passed through the hidden layer (self.W1) and activated using ReLU.
-        hidden_rep = self.dropout(hidden_rep)  # Dropout is applied to the output of the hidden layer to prevent overfitting.
-        output_logits = self.W2(hidden_rep)  #The result is then passed through the final layer (self.W2) to output logits.
-        predicted_vector = self.softmax(output_logits) #The logits are transformed into log probabilities using LogSoftmax.
+        hidden_rep = self.activation(self.W1(input_vector))  # Hidden layer with ReLU activation
+        hidden_rep = self.dropout(hidden_rep)  # Apply dropout
+        output_logits = self.W2(hidden_rep)  # Output layer
+        predicted_vector = self.softmax(output_logits) # LogSoftmax
         return predicted_vector
 
 # Function to create vocabulary from data
@@ -74,7 +74,7 @@ def load_data(train_data, val_data, test_data):
 
     tra = [(elt["text"].split(), int(elt["stars"] - 1)) for elt in training]
     val = [(elt["text"].split(), int(elt["stars"] - 1)) for elt in validation]
-    tst = [(elt["text"].split(), int(elt["stars"] - 1)) for elt in testing]  # Ensure the test data has labels
+    tst = [(elt["text"].split(), int(elt["stars"] - 1)) for elt in testing]
 
     return tra, val, tst
 
@@ -114,7 +114,7 @@ if __name__ == "__main__":
 
     # Early stopping setup
     best_val_loss = float('inf')
-    patience = 3  # Number of epochs with no improvement to wait before stopping
+    patience = 3
     early_stop_counter = 0
 
     # Training, Validation, and Early Stopping
@@ -143,7 +143,7 @@ if __name__ == "__main__":
                 loss = 0
                 for example_index in range(minibatch_size):
                     input_vector, gold_label = train_data[minibatch_index * minibatch_size + example_index]
-                    input_vector = input_vector.float()  # Ensure input is a float tensor
+                    input_vector = input_vector.float()
 
                     predicted_vector = model(input_vector)
                     predicted_label = torch.argmax(predicted_vector)
@@ -182,7 +182,7 @@ if __name__ == "__main__":
                     loss = 0
                     for example_index in range(minibatch_size):
                         input_vector, gold_label = valid_data[minibatch_index * minibatch_size + example_index]
-                        input_vector = input_vector.float()  # Ensure input is a float tensor
+                        input_vector = input_vector.float()
 
                         predicted_vector = model(input_vector)
                         predicted_label = torch.argmax(predicted_vector)
@@ -205,7 +205,7 @@ if __name__ == "__main__":
             # Early stopping based on validation loss
             if validation_losses[-1] < best_val_loss:
                 best_val_loss = validation_losses[-1]
-                early_stop_counter = 0  # Reset early stopping counter
+                early_stop_counter = 0
             else:
                 early_stop_counter += 1
 
@@ -230,70 +230,26 @@ if __name__ == "__main__":
     test_accuracy = correct / total
     print(f"Test accuracy: {test_accuracy}")
 
+    # Plotting two separate graphs for Loss and Accuracy
+    epochs = range(1, len(training_losses) + 1)
 
+    # Create a new figure and axis for the plot
+    fig, ax1 = plt.subplots(figsize=(10, 6))
 
-#Plotting Training VS Validationgraphs
-import matplotlib.pyplot as plt
+    # Plot the training loss on the primary y-axis
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Training Loss', color='blue')
+    ax1.plot(epochs, training_losses, label='Training Loss', color='blue', marker='o')
+    ax1.tick_params(axis='y', labelcolor='blue')
 
-# Observed values from the results provided
-epochs = [1, 2, 3, 4]
-train_loss = [1.1921980754137038, 0.7630389364957809, 0.49228991281986234, 0.3253906043916941]
-validation_loss = [16.004607429504393, 17.01054931640625, 17.15547019958496, 17.419215517044066]
-train_accuracy = [0.5125, 0.7035, 0.8234375, 0.8951875]
-validation_accuracy = [0.5575, 0.52125, 0.5525, 0.56125]
+    # Create a secondary y-axis for validation accuracy
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Validation Accuracy', color='orange')
+    ax2.plot(epochs, validation_accuracies, label='Validation Accuracy', color='orange', marker='x')
+    ax2.tick_params(axis='y', labelcolor='orange')
 
-# Plotting two separate graphs for Loss and Accuracy with adjusted y-axis limits and color
-plt.figure(figsize=(12, 6))
-
-# Plot training and validation loss
-plt.subplot(1, 2, 1)
-plt.plot(epochs, train_loss, label='Training Loss', color='blue')
-plt.plot(epochs, validation_loss, label='Validation Loss', color='orange')
-plt.title('Training and Validation Loss')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.ylim(0, 20)  # Adjusting the y-axis scale
-plt.legend()
-
-# Plot training and validation accuracy
-plt.subplot(1, 2, 2)
-plt.plot(epochs, train_accuracy, label='Training Accuracy', color='blue')
-plt.plot(epochs, validation_accuracy, label='Validation Accuracy', color='orange')
-plt.title('Training and Validation Accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.ylim(0.5, 1)  # Adjusting the y-axis scale
-plt.legend()
-
-plt.show()
-
-
-#Plotting learning curve
-import matplotlib.pyplot as plt
-training_losses = [1.1921980754137038, 0.7630389364957809, 0.49228991281986234, 0.3253906043916941]
-validation_accuracies = [0.5575, 0.52125, 0.5525, 0.56125]
-
-
-# Ensure that we plot based on the actual number of epochs
-epochs_completed = len(training_losses)  # This will reflect how many epochs were actually completed
-
-# Create a new figure and axis for the plot
-fig, ax1 = plt.subplots(figsize=(10, 6))
-
-# Plot the training loss on the primary y-axis
-ax1.set_xlabel('Epochs')
-ax1.set_ylabel('Training Loss', color='blue')
-ax1.plot(range(1, epochs_completed + 1), training_losses, label='Training Loss', color='blue', marker='o')
-ax1.tick_params(axis='y', labelcolor='blue')
-
-# Create a secondary y-axis for validation accuracy
-ax2 = ax1.twinx()
-ax2.set_ylabel('Validation Accuracy', color='orange')
-ax2.plot(range(1, epochs_completed + 1), validation_accuracies, label='Validation Accuracy', color='orange', marker='x')
-ax2.tick_params(axis='y', labelcolor='orange')
-
-# Add title and formatting
-plt.title('Training Loss and Validation Accuracy vs. Epochs')
-fig.tight_layout()  # Adjust layout to accommodate two y-axes
-plt.grid()
-plt.show()
+    # Add title and formatting
+    plt.title('Training Loss and Validation Accuracy vs. Epochs')
+    fig.tight_layout()  # Adjust layout to accommodate two y-axes
+    plt.grid()
+    plt.show()
