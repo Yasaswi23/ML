@@ -124,74 +124,33 @@ if __name__ == "__main__":
     best_val_loss = float('inf')
     early_stop_counter = 0
 
-    # 1) Train the model
-    if args.do_train:
-        print(f"========== Training for {args.epochs} epochs ==========")
-        for epoch in range(args.epochs):
-            model.train()
-            correct = 0
-            total = 0
-            epoch_loss = 0
-            start_time = time.time()
+    # Open file to save results
+    with open('results_rnn.txt', 'w') as results_file:
+        results_file.write("Epoch\tTraining Loss\tTraining Accuracy\tValidation Loss\tValidation Accuracy\n")
 
-            random.shuffle(train_data)
-            minibatch_size = args.batch_size
-            N = len(train_data)
+        # 1) Train the model
+        if args.do_train:
+            print(f"========== Training for {args.epochs} epochs ==========")
+            for epoch in range(args.epochs):
+                model.train()
+                correct = 0
+                total = 0
+                epoch_loss = 0
+                start_time = time.time()
 
-            for minibatch_index in tqdm(range((N + minibatch_size - 1) // minibatch_size)):
-                optimizer.zero_grad()
-                loss = 0
-                batch_correct = 0
-                batch_total = 0
-                batch_start = minibatch_index * minibatch_size
-                batch_end = min(batch_start + minibatch_size, N)
-                for index in range(batch_start, batch_end):
-                    input_vector, gold_label = train_data[index]
-                    input_vector = input_vector.unsqueeze(1)
-                    predicted_vector = model(input_vector)
-                    predicted_label = torch.argmax(predicted_vector, dim=1).item()
-                    batch_correct += int(predicted_label == gold_label)
-                    batch_total += 1
-                    example_loss = model.compute_Loss(predicted_vector, torch.tensor([gold_label]))
-                    loss += example_loss
-                loss = loss / batch_total
-                loss.backward()
-
-                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_value)
-
-                optimizer.step()
-                epoch_loss += loss.item() * batch_total
-                correct += batch_correct
-                total += batch_total
-
-            training_losses.append(epoch_loss / total)
-            training_accuracies.append(correct / total)
-
-            # Save model after each epoch
-            torch.save(model.state_dict(), args.save_path)
-
-            print(f"Training completed for epoch {epoch + 1}")
-            print(f"Training accuracy for epoch {epoch + 1}: {correct / total:.4f}")
-            print(f"Training loss for epoch {epoch + 1}: {epoch_loss / total:.4f}")
-
-            # Validation loop
-            model.eval()
-            correct = 0
-            total = 0
-            epoch_loss = 0
-
-            with torch.no_grad():
+                random.shuffle(train_data)
                 minibatch_size = args.batch_size
-                N_val = len(valid_data)
+                N = len(train_data)
 
-                for minibatch_index in tqdm(range((N_val + minibatch_size - 1) // minibatch_size)):
+                for minibatch_index in tqdm(range((N + minibatch_size - 1) // minibatch_size)):
+                    optimizer.zero_grad()
                     loss = 0
                     batch_correct = 0
                     batch_total = 0
                     batch_start = minibatch_index * minibatch_size
-                    batch_end = min(batch_start + minibatch_size, N_val)
+                    batch_end = min(batch_start + minibatch_size, N)
                     for index in range(batch_start, batch_end):
-                        input_vector, gold_label = valid_data[index]
+                        input_vector, gold_label = train_data[index]
                         input_vector = input_vector.unsqueeze(1)
                         predicted_vector = model(input_vector)
                         predicted_label = torch.argmax(predicted_vector, dim=1).item()
@@ -199,51 +158,78 @@ if __name__ == "__main__":
                         batch_total += 1
                         example_loss = model.compute_Loss(predicted_vector, torch.tensor([gold_label]))
                         loss += example_loss
-                    epoch_loss += loss.item()
+                    loss = loss / batch_total
+                    loss.backward()
+
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip_value)
+
+                    optimizer.step()
+                    epoch_loss += loss.item() * batch_total
                     correct += batch_correct
                     total += batch_total
 
-            validation_losses.append(epoch_loss / total)
-            validation_accuracies.append(correct / total)
+                training_losses.append(epoch_loss / total)
+                training_accuracies.append(correct / total)
 
-            if epoch_loss / total < best_val_loss:
-                best_val_loss = epoch_loss / total
-                early_stop_counter = 0
-            else:
-                early_stop_counter += 1
+                # Save model after each epoch
+                torch.save(model.state_dict(), args.save_path)
 
-            if early_stop_counter >= patience:
-                print("Early stopping triggered")
-                break
+                print(f"Training completed for epoch {epoch + 1}")
+                print(f"Training accuracy for epoch {epoch + 1}: {correct / total:.4f}")
+                print(f"Training loss for epoch {epoch + 1}: {epoch_loss / total:.4f}")
 
-    print("Training finished.")
+                # Validation loop
+                model.eval()
+                correct = 0
+                total = 0
+                epoch_loss = 0
 
-    # 2) Test accuracy prediction
-    with open("test.json") as f:
-        test_data = json.load(f)
+                with torch.no_grad():
+                    minibatch_size = args.batch_size
+                    N_val = len(valid_data)
 
-    test_samples = [(elt["text"].split(), int(elt["stars"] - 1)) for elt in test_data]
-    vectorized_test_data = convert_to_vector_representation(test_samples, word2index)
+                    for minibatch_index in tqdm(range((N_val + minibatch_size - 1) // minibatch_size)):
+                        loss = 0
+                        batch_correct = 0
+                        batch_total = 0
+                        batch_start = minibatch_index * minibatch_size
+                        batch_end = min(batch_start + minibatch_size, N_val)
+                        for index in range(batch_start, batch_end):
+                            input_vector, gold_label = valid_data[index]
+                            input_vector = input_vector.unsqueeze(1)
+                            predicted_vector = model(input_vector)
+                            predicted_label = torch.argmax(predicted_vector, dim=1).item()
+                            batch_correct += int(predicted_label == gold_label)
+                            batch_total += 1
+                            example_loss = model.compute_Loss(predicted_vector, torch.tensor([gold_label]))
+                            loss += example_loss
+                        epoch_loss += loss.item()
+                        correct += batch_correct
+                        total += batch_total
 
-    model.eval()
-    correct = 0
-    total = 0
+                validation_losses.append(epoch_loss / total)
+                validation_accuracies.append(correct / total)
 
-    with torch.no_grad():
-        for input_vector, gold_label in vectorized_test_data:
-            input_vector = input_vector.unsqueeze(1)
-            predicted_vector = model(input_vector)
-            predicted_label = torch.argmax(predicted_vector, dim=1).item()
+                # Write to results file
+                results_file.write(f"{epoch + 1}\t{training_losses[-1]:.4f}\t{training_accuracies[-1]:.4f}\t{validation_losses[-1]:.4f}\t{validation_accuracies[-1]:.4f}\n")
 
-            if predicted_label == gold_label:
-                correct += 1
-            total += 1
+                if epoch_loss / total < best_val_loss:
+                    best_val_loss = epoch_loss / total
+                    early_stop_counter = 0
+                else:
+                    early_stop_counter += 1
 
-    accuracy = correct / total
-    print(f"Test Accuracy: {accuracy:.4f}")
+                if early_stop_counter >= patience:
+                    print("Early stopping triggered")
+                    break
 
-    # 3) Plotting training vs validation loss
+        print("Training finished.")
+
+    # 2) Plotting graphs
+
     epochs = range(1, len(training_losses) + 1)
+
+    # Plot 1: Training Loss vs Validation Loss
     plt.figure(figsize=(12, 6))
 
     plt.subplot(1, 2, 1)
@@ -254,7 +240,7 @@ if __name__ == "__main__":
     plt.ylabel('Loss')
     plt.legend()
 
-    # 4) Plotting training vs validation accuracy
+    # Plot 2: Training Accuracy vs Validation Accuracy
     plt.subplot(1, 2, 2)
     plt.plot(epochs, training_accuracies, label='Training Accuracy', color='blue', marker='o')
     plt.plot(epochs, validation_accuracies, label='Validation Accuracy', color='orange', marker='x')
@@ -266,7 +252,7 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    # 5) Plotting training loss vs validation accuracy
+    # Plot 3: Training Loss vs Validation Accuracy
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
     ax1.set_xlabel('Epochs')
