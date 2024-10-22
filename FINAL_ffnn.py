@@ -17,12 +17,12 @@ class FFNN(nn.Module):
     def __init__(self, input_dim, h):
         super(FFNN, self).__init__()
         self.h = h
-        self.W1 = nn.Linear(input_dim, h) # Defined first fully connected/input layer
-        self.activation = nn.ReLU() # Apply ReLU activation
-        self.dropout = nn.Dropout(0.5) # Dropout to prevent overfitting
+        self.W1 = nn.Linear(input_dim, h)  # Defined first fully connected/input layer
+        self.activation = nn.ReLU()  # Apply ReLU activation
+        self.dropout = nn.Dropout(0.5)  # Dropout to prevent overfitting
         self.output_dim = 5
-        self.W2 = nn.Linear(h, self.output_dim) # Second fully connected/output layer
-        self.softmax = nn.LogSoftmax(dim=-1) # Apply LogSoftmax
+        self.W2 = nn.Linear(h, self.output_dim)  # Second fully connected/output layer
+        self.softmax = nn.LogSoftmax(dim=-1)  # Apply LogSoftmax
         self.loss = nn.NLLLoss()  # Negative Log Likelihood Loss
 
     def compute_Loss(self, predicted_vector, gold_label):
@@ -32,8 +32,9 @@ class FFNN(nn.Module):
         hidden_rep = self.activation(self.W1(input_vector))  # Hidden layer with ReLU activation
         hidden_rep = self.dropout(hidden_rep)  # Apply dropout
         output_logits = self.W2(hidden_rep)  # Output layer
-        predicted_vector = self.softmax(output_logits) # LogSoftmax
+        predicted_vector = self.softmax(output_logits)  # LogSoftmax
         return predicted_vector
+
 
 # Function to create vocabulary from data
 def make_vocab(data):
@@ -43,6 +44,7 @@ def make_vocab(data):
             vocab.add(word)
     return vocab
 
+
 # Function to create word to index and index to word mappings
 def make_indices(vocab):
     vocab_list = sorted(vocab)
@@ -51,6 +53,7 @@ def make_indices(vocab):
     index2word = {index: word for index, word in enumerate(vocab_list)}
     vocab.add(unk)
     return vocab, word2index, index2word
+
 
 # Function to convert data into vector representations
 def convert_to_vector_representation(data, word2index):
@@ -62,6 +65,7 @@ def convert_to_vector_representation(data, word2index):
             vector[index] += 1
         vectorized_data.append((vector, y))
     return vectorized_data
+
 
 # Function to load training, validation, and testing data
 def load_data(train_data, val_data, test_data):
@@ -77,6 +81,7 @@ def load_data(train_data, val_data, test_data):
     tst = [(elt["text"].split(), int(elt["stars"] - 1)) for elt in testing]
 
     return tra, val, tst
+
 
 # Main execution starts here
 if __name__ == "__main__":
@@ -123,65 +128,30 @@ if __name__ == "__main__":
     training_accuracies = []
     validation_accuracies = []
 
-    if args.do_train:
-        print("========== Training for {} epochs ==========".format(args.epochs))
-        for epoch in range(args.epochs):
-            model.train()
-            correct = 0
-            total = 0
-            epoch_loss = 0
-            start_time = time.time()
-            print(f"Training started for epoch {epoch + 1}")
+    # Open the results file
+    with open('results_ffnn.txt', 'w') as f:
+        f.write("Epoch, Training Loss, Validation Loss, Training Accuracy, Validation Accuracy\n")
 
-            random.shuffle(train_data)
-            minibatch_size = args.batch_size
-            N = len(train_data)
+        if args.do_train:
+            print("========== Training for {} epochs ==========".format(args.epochs))
+            for epoch in range(args.epochs):
+                model.train()
+                correct = 0
+                total = 0
+                epoch_loss = 0
+                start_time = time.time()
+                print(f"Training started for epoch {epoch + 1}")
 
-            # Training loop
-            for minibatch_index in tqdm(range(N // minibatch_size)):
-                optimizer.zero_grad()
-                loss = 0
-                for example_index in range(minibatch_size):
-                    input_vector, gold_label = train_data[minibatch_index * minibatch_size + example_index]
-                    input_vector = input_vector.float()
+                random.shuffle(train_data)
+                minibatch_size = args.batch_size
+                N = len(train_data)
 
-                    predicted_vector = model(input_vector)
-                    predicted_label = torch.argmax(predicted_vector)
-
-                    correct += int(predicted_label == gold_label)
-                    total += 1
-                    example_loss = model.compute_Loss(predicted_vector.view(1, -1), torch.tensor([gold_label]))
-                    loss += example_loss
-                loss = loss / minibatch_size
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-
-            # Track training accuracy and loss
-            training_losses.append(epoch_loss / (N // minibatch_size))
-            training_accuracies.append(correct / total)
-
-            print(f"Training completed for epoch {epoch + 1}")
-            print(f"Training accuracy for epoch {epoch + 1}: {correct / total}")
-            print(f"Training loss for epoch {epoch + 1}: {epoch_loss / (N // minibatch_size)}")
-            print(f"Training time for this epoch: {time.time() - start_time}")
-
-            # Validation loop
-            model.eval()
-            correct = 0
-            total = 0
-            epoch_loss = 0
-            start_time = time.time()
-            print(f"Validation started for epoch {epoch + 1}")
-
-            minibatch_size = 16
-            N = len(valid_data)
-
-            with torch.no_grad():
+                # Training loop
                 for minibatch_index in tqdm(range(N // minibatch_size)):
+                    optimizer.zero_grad()
                     loss = 0
                     for example_index in range(minibatch_size):
-                        input_vector, gold_label = valid_data[minibatch_index * minibatch_size + example_index]
+                        input_vector, gold_label = train_data[minibatch_index * minibatch_size + example_index]
                         input_vector = input_vector.float()
 
                         predicted_vector = model(input_vector)
@@ -191,44 +161,88 @@ if __name__ == "__main__":
                         total += 1
                         example_loss = model.compute_Loss(predicted_vector.view(1, -1), torch.tensor([gold_label]))
                         loss += example_loss
+                    loss = loss / minibatch_size
+                    loss.backward()
+                    optimizer.step()
                     epoch_loss += loss.item()
 
-            # Track validation accuracy and loss
-            validation_losses.append(epoch_loss / (N // minibatch_size))
-            validation_accuracies.append(correct / total)
+                # Track training accuracy and loss
+                training_losses.append(epoch_loss / (N // minibatch_size))
+                training_accuracies.append(correct / total)
 
-            print(f"Validation completed for epoch {epoch + 1}")
-            print(f"Validation accuracy for epoch {epoch + 1}: {correct / total}")
-            print(f"Validation loss for epoch {epoch + 1}: {epoch_loss / (N // minibatch_size)}")
-            print(f"Validation time for this epoch: {time.time() - start_time}")
+                print(f"Training completed for epoch {epoch + 1}")
+                print(f"Training accuracy for epoch {epoch + 1}: {correct / total}")
+                print(f"Training loss for epoch {epoch + 1}: {epoch_loss / (N // minibatch_size)}")
+                print(f"Training time for this epoch: {time.time() - start_time}")
 
-            # Early stopping based on validation loss
-            if validation_losses[-1] < best_val_loss:
-                best_val_loss = validation_losses[-1]
-                early_stop_counter = 0
-            else:
-                early_stop_counter += 1
+                # Validation loop
+                model.eval()
+                correct = 0
+                total = 0
+                epoch_loss = 0
+                start_time = time.time()
+                print(f"Validation started for epoch {epoch + 1}")
 
-            if early_stop_counter >= patience:
-                print(f"Early stopping triggered after {epoch + 1} epochs")
-                break
+                minibatch_size = 16
+                N = len(valid_data)
 
-    # Testing loop: compute accuracy for test data
-    print("========== Testing ==========")
-    model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for input_vector, gold_label in test_data:
-            input_vector = input_vector.float()
+                with torch.no_grad():
+                    for minibatch_index in tqdm(range(N // minibatch_size)):
+                        loss = 0
+                        for example_index in range(minibatch_size):
+                            input_vector, gold_label = valid_data[minibatch_index * minibatch_size + example_index]
+                            input_vector = input_vector.float()
 
-            predicted_vector = model(input_vector)
-            predicted_label = torch.argmax(predicted_vector)
+                            predicted_vector = model(input_vector)
+                            predicted_label = torch.argmax(predicted_vector)
 
-            correct += int(predicted_label == gold_label)
-            total += 1
-    test_accuracy = correct / total
-    print(f"Test accuracy: {test_accuracy}")
+                            correct += int(predicted_label == gold_label)
+                            total += 1
+                            example_loss = model.compute_Loss(predicted_vector.view(1, -1), torch.tensor([gold_label]))
+                            loss += example_loss
+                        epoch_loss += loss.item()
+
+                # Track validation accuracy and loss
+                validation_losses.append(epoch_loss / (N // minibatch_size))
+                validation_accuracies.append(correct / total)
+
+                print(f"Validation completed for epoch {epoch + 1}")
+                print(f"Validation accuracy for epoch {epoch + 1}: {correct / total}")
+                print(f"Validation loss for epoch {epoch + 1}: {epoch_loss / (N // minibatch_size)}")
+                print(f"Validation time for this epoch: {time.time() - start_time}")
+
+                # Write results to file
+                f.write(f"{epoch + 1}, {training_losses[-1]}, {validation_losses[-1]}, "
+                        f"{training_accuracies[-1]}, {validation_accuracies[-1]}\n")
+
+                # Early stopping based on validation loss
+                if validation_losses[-1] < best_val_loss:
+                    best_val_loss = validation_losses[-1]
+                    early_stop_counter = 0
+                else:
+                    early_stop_counter += 1
+
+                if early_stop_counter >= patience:
+                    print(f"Early stopping triggered after {epoch + 1} epochs")
+                    break
+
+        # Testing loop: compute accuracy for test data
+        print("========== Testing ==========")
+        model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for input_vector, gold_label in test_data:
+                input_vector = input_vector.float()
+
+                predicted_vector = model(input_vector)
+                predicted_label = torch.argmax(predicted_vector)
+
+                correct += int(predicted_label == gold_label)
+                total += 1
+        test_accuracy = correct / total
+        print(f"Test accuracy: {test_accuracy}")
+        f.write(f"Test accuracy: {test_accuracy}\n")
 
     # Plot 1: Training Loss vs. Validation Loss
     epochs = range(1, len(training_losses) + 1)
