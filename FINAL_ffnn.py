@@ -230,26 +230,47 @@ if __name__ == "__main__":
     test_accuracy = correct / total
     print(f"Test accuracy: {test_accuracy}")
 
-    # Plotting two separate graphs for Loss and Accuracy
+    # Plot 1: Training Loss vs. Validation Loss
     epochs = range(1, len(training_losses) + 1)
+    plt.figure(figsize=(12, 6))
 
-    # Create a new figure and axis for the plot
+    # Plot training and validation loss
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, training_losses, label='Training Loss', color='blue', marker='o')
+    plt.plot(epochs, validation_losses, label='Validation Loss', color='orange', marker='x')
+    plt.title('Training Loss vs Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+
+    # Plot 2: Training Accuracy vs. Validation Accuracy
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, training_accuracies, label='Training Accuracy', color='blue', marker='o')
+    plt.plot(epochs, validation_accuracies, label='Validation Accuracy', color='orange', marker='x')
+    plt.title('Training Accuracy vs Validation Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+    # Plot 3: Training Loss vs. Validation Accuracy
     fig, ax1 = plt.subplots(figsize=(10, 6))
 
-    # Plot the training loss on the primary y-axis
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Training Loss', color='blue')
     ax1.plot(epochs, training_losses, label='Training Loss', color='blue', marker='o')
     ax1.tick_params(axis='y', labelcolor='blue')
 
-    # Create a secondary y-axis for validation accuracy
     ax2 = ax1.twinx()
     ax2.set_ylabel('Validation Accuracy', color='orange')
     ax2.plot(epochs, validation_accuracies, label='Validation Accuracy', color='orange', marker='x')
     ax2.tick_params(axis='y', labelcolor='orange')
 
-    # Add title and formatting
-    plt.title('Training Loss and Validation Accuracy vs. Epochs')
-    fig.tight_layout()  # Adjust layout to accommodate two y-axes
-    plt.grid()
+    plt.title('Training Loss vs Validation Accuracy')
+    fig.tight_layout()
+    plt.grid(True)
     plt.show()
