@@ -4,3 +4,4 @@ Epoch	Training Loss	Training Accuracy	Validation Loss	Validation Accuracy
 3	1.4532	0.3403	1.4200	0.3500
 4	1.4211	0.3536	1.3900	0.3600
 5	1.4022	0.3629	1.3700	0.3700
+Test Accuracy: 0.4163
